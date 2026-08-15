@@ -71,11 +71,7 @@ jobs:
           pip install "Cython>=0.29.33,<3.1" buildozer virtualenv
 
       - name: Build debug APK
-        run: |
-          # First-run prompts (accept defaults / SDK licenses)
-          yes | buildozer -v android debug || true
-          # Re-run so a real failure still fails the job after licenses are accepted
-          buildozer -v android debug
+        run: buildozer -v android debug
 
       - name: Locate APK
         id: apk

@@ -4,7 +4,9 @@ Native phone UI for OnlyImgCompressorYouNeed — **Kivy** (no WebView). Uses the
 
 ## Why Kivy
 
-pywebview’s desktop WebView stack does not work as a production Android UI. Kivy draws with OpenGL ES and maps cleanly to touch screens, while Buildozer packages a Python APK.
+pywebview’s desktop WebView stack does not ship as a production Android UI. Kivy draws with OpenGL ES; Buildozer packages a Python APK.
+
+**Python pin:** `hostpython3==3.11.13` and `python3==3.11.13` must match (Kivy 2.3 is not CPython 3.14-ready).
 
 ## Run on a desktop (preview)
 

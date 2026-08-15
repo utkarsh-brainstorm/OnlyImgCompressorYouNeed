@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version label for the release (e.g. v1.0.0)"
+        required: true
+        default: "v0.0.0-dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: OnlyImgCompressorYouNeed-linux-x86_64
+            ext: ""
+          - os: windows-latest
+            artifact: OnlyImgCompressorYouNeed-windows-x86_64
+            ext: ".exe"
+          - os: macos-13
+            artifact: OnlyImgCompressorYouNeed-macos-x86_64
+            ext: ""
+          - os: macos-14
+            artifact: OnlyImgCompressorYouNeed-macos-arm64
+            ext: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Linux WebKit (pywebview)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libgirepository1.0-dev \
+            gir1.2-webkit2gtk-4.1 \
+            python3-gi \
+            python3-gi-cairo
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller --noconfirm OnlyImgCompressorYouNeed.spec
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/out
+          if [ -d "dist/OnlyImgCompressorYouNeed.app" ]; then
+            # Prefer .app on macOS when BUNDLE produced one
+            ditto -c -k --sequesterRsrc --keepParent \
+              "dist/OnlyImgCompressorYouNeed.app" \
+              "dist/out/${{ matrix.artifact }}.zip"
+          elif [ -f "dist/OnlyImgCompressorYouNeed" ]; then
+            cp "dist/OnlyImgCompressorYouNeed" "dist/out/${{ matrix.artifact }}"
+            chmod +x "dist/out/${{ matrix.artifact }}"
+            (cd dist/out && zip -9 "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}")
+          else
+            echo "No build output found" >&2
+            ls -la dist || true
+            exit 1
+          fi
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/out
+          cp "dist/OnlyImgCompressorYouNeed.exe" "dist/out/${{ matrix.artifact }}.exe"
+          (cd dist/out && 7z a -tzip "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}.exe")
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/out/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Flatten zips
+        run: |
+          mkdir -p upload
+          find release-assets -name '*.zip' -exec cp {} upload/ \;
+          ls -la upload
+
+      - name: Resolve tag name
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: OnlyImgCompressorYouNeed ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          files: upload/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

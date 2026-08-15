@@ -67,10 +67,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
-          # Confirm GTK/WebKit import path works on the build runner
-          if [ "${{ matrix.platform }}" = "linux" ]; then
-            python -c "import gi; gi.require_version('WebKit2','4.1'); from gi.repository import WebKit2; print('webkit ok', WebKit2)"
-          fi
+
+      - name: Verify Linux WebKit import
+        if: matrix.platform == 'linux'
+        run: |
+          python -c "import gi; gi.require_version('WebKit2','4.1'); from gi.repository import WebKit2; print('webkit ok', WebKit2)"
 
       - name: Build with PyInstaller (onefile, OS webview)
         run: pyinstaller --noconfirm OnlyImgCompressorYouNeed.spec

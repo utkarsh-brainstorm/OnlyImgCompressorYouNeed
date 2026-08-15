@@ -26,14 +26,16 @@ python onlyimg_compressor.py
 
 ## Releases
 
-1. Push a version tag, e.g. `v1.0.0`
+1. Push a version tag, e.g. `v1.0.1`
 2. GitHub Actions builds executables for all three platforms
 3. Artifacts are attached to the GitHub Release automatically
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
+
+**Linux note:** the Linux zip is a folder (not a single file). It bundles **Qt WebEngine**, so it runs on typical Ubuntu / Fedora / Mint desktops without installing WebKitGTK or PyGObject. Unzip and run `OnlyImgCompressorYouNeed/OnlyImgCompressorYouNeed`.
 
 You can also run the **Release** workflow manually from the Actions tab (`workflow_dispatch`).
 

@@ -1106,6 +1106,19 @@ class CompressorAPI:
 # ==========================================
 # 3. APPLICATION ENTRY POINT
 # ==========================================
+def _start_gui(debug: bool):
+    """
+    Frozen Linux builds ship PySide6/QtWebEngine and must force the Qt backend.
+    Dev installs / other OSes can auto-detect (Edge, Cocoa, GTK, Qt).
+    """
+    frozen = getattr(sys, "frozen", False)
+    if frozen and sys.platform.startswith("linux"):
+        os.environ.setdefault("PYWEBVIEW_GUI", "qt")
+        webview.start(gui="qt", debug=debug)
+        return
+    webview.start(debug=debug)
+
+
 if __name__ == "__main__":
     api = CompressorAPI()
 
@@ -1128,7 +1141,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Could not bind native drop event: {e}")
 
-        webview.start(debug=os.environ.get("OIC_DEBUG") == "1")
+        _start_gui(debug=os.environ.get("OIC_DEBUG") == "1")
 
     except Exception as e:
         err_text = f"Failed to launch GUI: {e}\n{traceback.format_exc()}"
@@ -1144,7 +1157,8 @@ if __name__ == "__main__":
                 "OnlyImgCompressorYouNeed — Startup Error",
                 "The application window could not be started.\n\n"
                 f"{e}\n\n"
-                "On Linux, make sure webkit2gtk (or qtwebengine) is installed.\n\n"
+                "Linux release builds bundle Qt. If you built from source, install "
+                "PySide6 (pip install PySide6) or system WebKitGTK + PyGObject.\n\n"
                 f"A detailed log was saved to:\n{_crash_log_path()}",
             )
             root.destroy()

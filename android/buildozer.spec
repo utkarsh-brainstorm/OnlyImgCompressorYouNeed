@@ -9,10 +9,10 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 source.exclude_dirs = .buildozer,bin,.git,__pycache__
 source.exclude_patterns = *.pyc,*.apk
 
-version = 1.0.0
+version = 1.0.1
 
-# Keep the APK lean: only what the UI + engine need
-requirements = python3,kivy==2.3.0,pillow,plyer,pyjnius,android
+# Pin Python 3.11 — Kivy 2.3.x Cython code breaks on CPython 3.14 (_PyLong_AsByteArray)
+requirements = python3==3.11.13,kivy==2.3.0,pillow,plyer,pyjnius,android
 
 orientation = portrait
 fullscreen = 0

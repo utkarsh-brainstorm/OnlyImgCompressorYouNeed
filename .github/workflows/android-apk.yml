@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python 3.11 (must match buildozer hostpython3 pin)
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11.13"
+          python-version: "3.11.10"
 
       - name: Cache Buildozer / Android SDK
         uses: actions/cache@v4
@@ -36,9 +36,9 @@ jobs:
           path: |
             ~/.buildozer
             android/.buildozer
-          key: buildozer-hp31113-${{ runner.os }}-${{ hashFiles('android/buildozer.spec') }}
+          key: buildozer-py31110-ndk26b-${{ runner.os }}-${{ hashFiles('android/buildozer.spec') }}
           restore-keys: |
-            buildozer-hp31113-${{ runner.os }}-
+            buildozer-py31110-ndk26b-${{ runner.os }}-
 
       - name: Install system dependencies
         working-directory: ${{ github.workspace }}
@@ -62,7 +62,8 @@ jobs:
             libssl-dev \
             automake \
             gettext \
-            libltdl-dev
+            libltdl-dev \
+            libltdl7
 
       - name: Install Buildozer
         working-directory: ${{ github.workspace }}
@@ -71,6 +72,11 @@ jobs:
           pip install "Cython==0.29.37" buildozer virtualenv
 
       - name: Build debug APK
+        env:
+          # NDK clang treats missing prototypes as errors when building CPython grpmodule
+          CFLAGS: "-Wno-error=implicit-function-declaration"
+          CPPFLAGS: "-Wno-error=implicit-function-declaration"
+          ANDROIDCFLAGS: "-Wno-error=implicit-function-declaration"
         run: buildozer -v android debug
 
       - name: Stage APK (plain file, no zip)

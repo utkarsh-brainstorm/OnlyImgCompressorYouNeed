@@ -45,6 +45,12 @@ You can also run the **Release** workflow manually from the Actions tab (`workfl
 | `core/` | Shared compression engine |
 | `android/` | Native Android UI (Kivy) + Buildozer APK |
 
+## Android
+
+Native **Kivy** UI (no WebView) lives in [`android/`](android/). Same compression engine; Buildozer ships an APK. See [`android/README.md`](android/README.md).
+
+Tag a release (`v*`) to also run the Android APK workflow, or trigger **Android APK** manually from Actions.
+
 ## License
 
 MIT

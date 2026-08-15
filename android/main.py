@@ -11,7 +11,7 @@ import time
 import traceback
 
 from kivy.app import App
-from kivy.clock import Clock, mainthread
+from kivy.clock import mainthread
 from kivy.core.window import Window
 from kivy.graphics import Color, RoundedRectangle
 from kivy.lang import Builder
@@ -716,7 +716,7 @@ class DoneScreen(Screen):
 class OnlyImgApp(App):
     selected_paths: list
     config_values: dict
-    last_summary: dict | None
+    last_summary = None
 
     def build(self):
         self.title = "OnlyImgCompressorYouNeed"

@@ -11,36 +11,95 @@ permissions:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: android
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Buildozer global SDK/NDK
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache Buildozer / Android SDK
         uses: actions/cache@v4
         with:
-          path: .buildozer-global
-          key: buildozer-global-${{ hashFiles('android/buildozer.spec') }}
-          restore-keys: buildozer-global-
+          path: |
+            ~/.buildozer
+            android/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('android/buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          workdir: android
-          buildozer_version: stable
-          command: buildozer android debug
+      - name: Install system dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            git \
+            unzip \
+            zip \
+            openjdk-17-jdk-headless \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            automake \
+            gettext \
+            libltdl-dev
+
+      - name: Install Buildozer
+        working-directory: ${{ github.workspace }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install "Cython>=0.29.33,<3.1" buildozer virtualenv
+
+      - name: Build debug APK
+        run: |
+          # First-run prompts (accept defaults / SDK licenses)
+          yes | buildozer -v android debug || true
+          # Re-run so a real failure still fails the job after licenses are accepted
+          buildozer -v android debug
+
+      - name: Locate APK
+        id: apk
+        run: |
+          APK=$(find bin -name '*.apk' | head -n 1)
+          if [ -z "$APK" ]; then
+            echo "No APK produced" >&2
+            ls -laR bin || true
+            exit 1
+          fi
+          echo "path=${{ github.workspace }}/android/${APK}" >> "$GITHUB_OUTPUT"
+          ls -la "$APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: OnlyImgCompressorYouNeed-android
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: ${{ steps.apk.outputs.path }}
 
       - name: Attach APK to release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.buildozer.outputs.filename }}
+          files: ${{ steps.apk.outputs.path }}
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

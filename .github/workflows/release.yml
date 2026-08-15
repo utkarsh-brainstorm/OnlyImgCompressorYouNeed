@@ -48,11 +48,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
+          # Ubuntu 22.04 ships WebKitGTK 4.0 (4.1 packages are for 24.04+)
           sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
+            libwebkit2gtk-4.0-dev \
             libgtk-3-dev \
             libgirepository1.0-dev \
-            gir1.2-webkit2gtk-4.1 \
+            gir1.2-webkit2gtk-4.0 \
             python3-gi \
             python3-gi-cairo
 

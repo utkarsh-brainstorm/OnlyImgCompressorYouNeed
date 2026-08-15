@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Version label for the release (e.g. v1.0.1)"
+        description: "Version label for the release (e.g. v1.0.2)"
         required: true
         default: "v0.0.0-dev"
 
@@ -24,7 +24,7 @@ jobs:
             artifact: OnlyImgCompressorYouNeed-linux-x86_64
             platform: linux
           - os: windows-latest
-            artifact: OnlyImgCompressorYouNeed-windows-x86_64
+            artifact: OnlyImgCompressorYouNeed-windows-x86_64.exe
             platform: windows
           - os: macos-15-intel
             artifact: OnlyImgCompressorYouNeed-macos-x86_64
@@ -44,55 +44,49 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Same light native-webview deps as Querii / AttendanceProcessor
+      - name: Install Linux WebKit2GTK (system webview)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgirepository1.0-dev \
+            gcc \
+            libcairo2-dev \
+            pkg-config \
+            python3-dev \
+            gir1.2-gtk-3.0 \
+            python3-gi \
+            python3-gi-cairo
+          sudo apt-get install -y gir1.2-webkit2-4.1 \
+            || sudo apt-get install -y gir1.2-webkit2-4.0
+
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (onefile, OS webview)
         run: pyinstaller --noconfirm OnlyImgCompressorYouNeed.spec
 
-      - name: Package artifact (Linux — onedir + bundled Qt)
-        if: matrix.platform == 'linux'
+      - name: Stage release binary (no zip)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist/out
-          test -d dist/OnlyImgCompressorYouNeed
-          # Keep folder layout so QtWebEngine helpers stay next to the binary
-          (cd dist && zip -9 -r "out/${{ matrix.artifact }}.zip" OnlyImgCompressorYouNeed)
-          ls -lh "dist/out/${{ matrix.artifact }}.zip"
-
-      - name: Package artifact (macOS)
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist/out
-          if [ -f "dist/OnlyImgCompressorYouNeed" ]; then
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            cp "dist/OnlyImgCompressorYouNeed.exe" "dist/out/${{ matrix.artifact }}"
+          else
             cp "dist/OnlyImgCompressorYouNeed" "dist/out/${{ matrix.artifact }}"
             chmod +x "dist/out/${{ matrix.artifact }}"
-            (cd dist/out && zip -9 "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}")
-          else
-            echo "No macOS build output found" >&2
-            ls -la dist || true
-            exit 1
           fi
-
-      - name: Package artifact (Windows)
-        if: matrix.platform == 'windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist/out
-          cp "dist/OnlyImgCompressorYouNeed.exe" "dist/out/${{ matrix.artifact }}.exe"
-          (cd dist/out && 7z a -tzip "${{ matrix.artifact }}.zip" "${{ matrix.artifact }}.exe")
+          ls -lh "dist/out/${{ matrix.artifact }}"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/out/*.zip
+          path: dist/out/${{ matrix.artifact }}
 
   release:
     needs: build
@@ -103,11 +97,12 @@ jobs:
         with:
           path: release-assets
 
-      - name: Flatten zips
+      - name: Flatten binaries
         run: |
           mkdir -p upload
-          find release-assets -name '*.zip' -exec cp {} upload/ \;
-          ls -la upload
+          find release-assets -type f -exec cp {} upload/ \;
+          chmod +x upload/* || true
+          ls -lah upload
 
       - name: Resolve tag name
         id: meta

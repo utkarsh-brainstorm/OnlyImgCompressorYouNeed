@@ -2,8 +2,10 @@
 OnlyImgCompressorYouNeed
 Single-file desktop app (pywebview + Pillow) for batch image compression.
 
-Dependencies: pywebview>=4.0, Pillow>=9.0
-Ships as a standalone PyInstaller build for Windows / macOS / Linux via CI.
+Uses OS native webviews — no bundled Chromium/Qt (same approach as Querii):
+  • Linux   → GTK3 + WebKit2GTK
+  • macOS   → WKWebView
+  • Windows → Edge WebView2
 """
 
 import sys
@@ -39,6 +41,48 @@ import traceback
 import subprocess
 import webbrowser
 from datetime import datetime
+
+# Prefer X11 + software WebKit paths on Linux (avoids common compositor crashes)
+os.environ.setdefault("GDK_BACKEND", "x11")
+os.environ.setdefault("WEBKIT2_DISABLE_HW_ACCELERATION", "1")
+os.environ.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
+os.environ.setdefault(
+    "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+    "--proxy-server='direct://' --proxy-bypass-list=*",
+)
+
+
+def _check_linux_backend() -> None:
+    """Require system WebKit2GTK — keeps the binary light (no Qt/Chromium)."""
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        import gi
+
+        gi.require_version("WebKit2", "4.1")
+        from gi.repository import WebKit2  # noqa: F401
+        return
+    except Exception:
+        pass
+    try:
+        import gi
+
+        gi.require_version("WebKit2", "4.0")
+        from gi.repository import WebKit2  # noqa: F401
+        return
+    except Exception:
+        pass
+    print(
+        "\n[ERROR] WebKit2GTK not found.\n"
+        "Install the system webview packages, then re-run:\n"
+        "  Ubuntu/Mint/Debian:  sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1\n"
+        "  Fedora:              sudo dnf install python3-gobject webkit2gtk4.1\n"
+        "  Arch:                sudo pacman -S python-gobject webkit2gtk-4.1\n"
+    )
+    sys.exit(1)
+
+
+_check_linux_backend()
 
 try:
     import webview
@@ -1106,19 +1150,6 @@ class CompressorAPI:
 # ==========================================
 # 3. APPLICATION ENTRY POINT
 # ==========================================
-def _start_gui(debug: bool):
-    """
-    Frozen Linux builds ship PySide6/QtWebEngine and must force the Qt backend.
-    Dev installs / other OSes can auto-detect (Edge, Cocoa, GTK, Qt).
-    """
-    frozen = getattr(sys, "frozen", False)
-    if frozen and sys.platform.startswith("linux"):
-        os.environ.setdefault("PYWEBVIEW_GUI", "qt")
-        webview.start(gui="qt", debug=debug)
-        return
-    webview.start(debug=debug)
-
-
 if __name__ == "__main__":
     api = CompressorAPI()
 
@@ -1141,7 +1172,8 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Could not bind native drop event: {e}")
 
-        _start_gui(debug=os.environ.get("OIC_DEBUG") == "1")
+        # gui=None → OS native: gtk / cocoa / edgechromium
+        webview.start(debug=os.environ.get("OIC_DEBUG") == "1")
 
     except Exception as e:
         err_text = f"Failed to launch GUI: {e}\n{traceback.format_exc()}"
@@ -1157,9 +1189,9 @@ if __name__ == "__main__":
                 "OnlyImgCompressorYouNeed — Startup Error",
                 "The application window could not be started.\n\n"
                 f"{e}\n\n"
-                "Linux release builds bundle Qt. If you built from source, install "
-                "PySide6 (pip install PySide6) or system WebKitGTK + PyGObject.\n\n"
-                f"A detailed log was saved to:\n{_crash_log_path()}",
+                "Linux needs WebKit2GTK, e.g.:\n"
+                "  sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1\n\n"
+                f"Log:\n{_crash_log_path()}",
             )
             root.destroy()
         except Exception:

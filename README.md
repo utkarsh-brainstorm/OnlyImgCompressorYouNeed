@@ -22,22 +22,25 @@ pip install -r requirements.txt
 python onlyimg_compressor.py
 ```
 
-**Linux note:** pywebview needs a backend such as `webkit2gtk` or Qt WebEngine.
+**Linux:** needs system WebKit2GTK (keeps the download tiny — no Chromium bundled):
+
+```bash
+sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1
+# Fedora: sudo dnf install python3-gobject webkit2gtk4.1
+```
 
 ## Releases
 
-1. Push a version tag, e.g. `v1.0.1`
-2. GitHub Actions builds executables for all three platforms
-3. Artifacts are attached to the GitHub Release automatically
+1. Push a version tag, e.g. `v1.0.2`
+2. GitHub Actions uploads **plain binaries** (no zip) for Linux / Windows / macOS, plus an Android APK
+3. Linux/macOS binaries are single files; Linux still expects WebKit2GTK on the machine (same model as Querii)
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
-**Linux note:** the Linux zip is a folder (not a single file). It bundles **Qt WebEngine**, so it runs on typical Ubuntu / Fedora / Mint desktops without installing WebKitGTK or PyGObject. Unzip and run `OnlyImgCompressorYouNeed/OnlyImgCompressorYouNeed`.
-
-You can also run the **Release** workflow manually from the Actions tab (`workflow_dispatch`).
+You can also run the **Release** / **Android APK** workflows manually from the Actions tab.
 
 ## Project layout
 

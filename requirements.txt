@@ -1,4 +1,4 @@
 pywebview>=5.0,<6
 Pillow>=10.0
-# Bundled into the Linux release so the app does not need system GTK/WebKit Python bindings
-PySide6>=6.6,<7; sys_platform == "linux"
+# Linux native WebKit backend (system libwebkit2gtk + these Python bindings)
+PyGObject>=3.42; sys_platform == "linux"
